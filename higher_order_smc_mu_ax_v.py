@@ -92,7 +92,7 @@ alpha = 0.45
 beta = 0.01
 u2 = 0.0
 
-delta_max = np.deg2rad(60.0)
+delta_max = np.deg2rad(20.0)
 
 # histories
 s_hist = np.zeros(N)
@@ -100,9 +100,12 @@ delta1_hist = np.zeros(N)
 delta2_hist = np.zeros(N)
 delta_eq_hist = np.zeros(N)
 delta_st_hist = np.zeros(N)
+kappa_hist = np.zeros(N)
+r_ref_hist = np.zeros(N)
 
+R = 100.0 # Curvw Radius (m)
 def road_curvature(time):
-    return 0.0   # straight road
+    return 1.0 / R
 
 for k in range(N - 1):
     kappa = road_curvature(t[k])
@@ -141,6 +144,8 @@ for k in range(N - 1):
     delta2_hist[k] = delta2
     delta_eq_hist[k] = delta_eq
     delta_st_hist[k] = delta_st
+    kappa_hist[k] = kappa
+    r_ref_hist[k] = Vx * kappa
 
 # final samples
 x_last = np.array([vy[-1], r[-1], e_dL[-1], e_phiL[-1]], dtype=float)
@@ -149,6 +154,14 @@ delta1_hist[-1] = delta1_hist[-2]
 delta2_hist[-1] = delta2_hist[-2]
 delta_eq_hist[-1] = delta_eq_hist[-2]
 delta_st_hist[-1] = delta_st_hist[-2]
+kappa_hist[-1] = kappa_hist[-2]
+r_ref_hist[-1] = r_ref_hist[-2]
+
+print("Final e_dL =", e_dL[-1])
+print("Final e_phiL =", e_phiL[-1])
+print("Final r =", r[-1])
+print("Expected r_ref =", Vx / R)
+print("Max |delta1| =", np.max(np.abs(delta1_hist)))
 
 # =====================
 # Plots
@@ -176,9 +189,10 @@ plt.legend()
 plt.grid(True)
 
 plt.subplot(2, 2, 4)
-plt.plot(t, vy, label="vy")
 plt.plot(t, r, label="r")
+plt.plot(t, r_ref_hist, "--", label="r_ref = Vx*kappa")
 plt.xlabel("Time [s]")
+plt.ylabel("Yaw rate [rad/s]")
 plt.legend()
 plt.grid(True)
 
@@ -197,10 +211,7 @@ plt.plot(t, delta_eq_hist, label="delta_eq")
 plt.plot(t, delta_st_hist, label="delta_st")
 plt.plot(t, delta1_hist, label="delta1")
 plt.xlabel("Time [s]")
+plt.ylabel("Steering [rad]")
 plt.legend()
 plt.grid(True)
 plt.show()
-
-
-
-
