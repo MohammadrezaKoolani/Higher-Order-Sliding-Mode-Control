@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.linalg import solve_continuous_are
 
 # ====================
 # Simulation Settings
@@ -25,7 +26,7 @@ Ca2 = 175000.0
 Ca3 = 173600.0
 Ca4 = 173600.0
 
-Vx = 13.5
+Vx = 18
 ld = 5.0
 
 # dual-front-steering relation
@@ -77,7 +78,7 @@ r = np.zeros(N)
 e_dL = np.zeros(N)
 e_phiL = np.zeros(N)
 
-e_dL[0] = 1.0
+e_dL[0] = 2.0
 e_phiL[0] = 0.05
 
 # ============================================
@@ -86,19 +87,26 @@ e_phiL[0] = 0.05
 # lam = 1.2
 # alpha = 0.45
 # beta = 0.01
-alpha = 0.65
-beta = 0.02
-u2 = 0.0
+# alpha = 0.65
+# beta = 0.02
+# u2 = 0.0
 
 # Derived sliding surface:
 # s = -vy_tilde - ld*r_tilde + lam*e_dL_tilde + Vx*e_phiL_tilde
-C = np.array([[-3.67746041, 14.76200588, 7.88453846, 11.85602271]], dtype=float)
-# C = np.array([[-1.0, -ld, lam, Vx]], dtype=float)
+# C = np.array([[-3.67746041, 14.76200588, 7.88453846, 11.85602271]], dtype=float)
+Q = np.diag([0.1, 0.3, 60.0, 30.0])
+R_lqr = np.array([[1.0]])
+
+P = solve_continuous_are(A, B, Q, R_lqr)
+C = (B.T @ P).astype(float)   # 1x4 row vector
 
 Gamma = float((C @ B).item())
 if abs(Gamma) < 1e-9:
     raise ValueError("Gamma = C @ B is zero. Choose another sliding surface.")
 
+alpha = 0.80
+beta = 0.05
+u2 = 0.0
 
 
 delta_max = np.deg2rad(20.0)
@@ -115,10 +123,10 @@ x_ref_hist = np.zeros((N, 4))
 delta_eq_hist = np.zeros(N)
 delta_st_hist = np.zeros(N)
 
-R = 100.0
-
+R = 50.0
 def road_curvature(time):
     return 1.0 / R
+
 
 def steady_state_reference(kappa):
     """
