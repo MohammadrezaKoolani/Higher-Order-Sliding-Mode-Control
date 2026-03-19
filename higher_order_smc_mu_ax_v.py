@@ -84,8 +84,10 @@ e_phiL[0] = 0.05
 # HOSM controller on z = x - x_ref(kappa)
 # ============================================
 # lam = 1.2
-alpha = 0.45
-beta = 0.01
+# alpha = 0.45
+# beta = 0.01
+alpha = 0.65
+beta = 0.02
 u2 = 0.0
 
 # Derived sliding surface:
