@@ -108,6 +108,11 @@ alpha = 0.80
 beta = 0.05
 u2 = 0.0
 
+# Disturbance parameters
+d1 = 0.10      # disturbance in vy_dot [m/s^2]
+d2 = 0.02      # disturbance in r_dot [rad/s^2]
+d3 = 0.02      # disturbance in e_dL_dot [m/s]
+d4 = 0.005     # disturbance in e_phiL_dot [rad/s]
 
 delta_max = np.deg2rad(20.0)
 
@@ -201,7 +206,8 @@ for k in range(N - 1):
     delta2 = a_s * delta1
 
     # plant propagation
-    x_dot = A @ x + B[:, 0] * delta1 + E[:, 0] * kappa
+    w = np.array([d1, d2, d3, d4], dtype=float) # Disturbance vector
+    x_dot = A @ x + B[:, 0] * delta1 + np.array([0.0, 0.0, 0.0, -Vx * kappa]) + w
     x_next = x + dt * x_dot
 
     vy[k+1], r[k+1], e_dL[k+1], e_phiL[k+1] = x_next
