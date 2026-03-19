@@ -83,16 +83,21 @@ e_phiL[0] = 0.05
 # ============================================
 # HOSM controller on z = x - x_ref(kappa)
 # ============================================
-# Keep your same sliding surface C so we only test the x_ref correction.
-C = np.array([[-3.67746041, 14.76200588, 7.88453846, 11.85602271]], dtype=float)
-Gamma = float((C @ B).item())
-
-if abs(Gamma) < 1e-9:
-    raise ValueError("Gamma = C @ B is zero. Choose another sliding surface.")
-
+# lam = 1.2
 alpha = 0.45
 beta = 0.01
 u2 = 0.0
+
+# Derived sliding surface:
+# s = -vy_tilde - ld*r_tilde + lam*e_dL_tilde + Vx*e_phiL_tilde
+C = np.array([[-3.67746041, 14.76200588, 7.88453846, 11.85602271]], dtype=float)
+# C = np.array([[-1.0, -ld, lam, Vx]], dtype=float)
+
+Gamma = float((C @ B).item())
+if abs(Gamma) < 1e-9:
+    raise ValueError("Gamma = C @ B is zero. Choose another sliding surface.")
+
+
 
 delta_max = np.deg2rad(20.0)
 
@@ -105,6 +110,8 @@ r_ref_hist = np.zeros(N)
 ephi_ref_hist = np.zeros(N)
 z_hist = np.zeros((N, 4))
 x_ref_hist = np.zeros((N, 4))
+delta_eq_hist = np.zeros(N)
+delta_st_hist = np.zeros(N)
 
 R = 100.0
 
@@ -194,6 +201,8 @@ for k in range(N - 1):
     delta1_hist[k] = delta1
     delta2_hist[k] = delta2
     delta_ref_hist[k] = delta_ref
+    delta_eq_hist[k] = delta_ref + u_eq
+    delta_st_hist[k] = u_st
     r_ref_hist[k] = x_ref[1]
     ephi_ref_hist[k] = x_ref[3]
     x_ref_hist[k, :] = x_ref
@@ -211,6 +220,8 @@ s_hist[-1] = float((C @ z_last).item())
 delta1_hist[-1] = delta1_hist[-2]
 delta2_hist[-1] = delta2_hist[-2]
 delta_ref_hist[-1] = delta_ref_last
+delta_eq_hist[-1] = delta_eq_hist[-2]
+delta_st_hist[-1] = delta_st_hist[-2]
 r_ref_hist[-1] = x_ref_last[1]
 ephi_ref_hist[-1] = x_ref_last[3]
 x_ref_hist[-1, :] = x_ref_last
@@ -225,6 +236,9 @@ print("Final r_ref      =", x_ref_last[1])
 print("Final e_phiL     =", e_phiL[-1])
 print("Final e_phiL_ref =", x_ref_last[3])
 print("Max |delta1|     =", np.max(np.abs(delta1_hist)))
+print("C =", C)
+print("Gamma =", Gamma)
+print("Final s =", s_hist[-1])
 
 # =====================
 # Plots
@@ -283,5 +297,15 @@ plt.figure()
 plt.plot(t, s_hist)
 plt.xlabel("Time [s]")
 plt.ylabel("Sliding variable s = C(x - x_ref)")
+plt.grid(True)
+plt.show()
+
+plt.figure()
+plt.plot(t, delta_eq_hist, label="delta_eq total")
+plt.plot(t, delta_st_hist, label="delta_st contribution")
+plt.plot(t, delta1_hist, label="delta1")
+plt.xlabel("Time [s]")
+plt.ylabel("Steering [rad]")
+plt.legend()
 plt.grid(True)
 plt.show()
