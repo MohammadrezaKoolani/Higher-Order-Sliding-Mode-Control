@@ -28,7 +28,7 @@ Ca4 = 173600.0
 Vx = 13.5
 ld = 5.0
 
-# dual-front-steering relation from the truck paper
+# dual-front-steering relation
 a_s = (2.0 * L2 - L3 - L4) / (2.0 * L1 - L3 - L4)
 
 # =========================
@@ -51,7 +51,7 @@ A = np.array([
     [a11, a12, 0.0, 0.0],
     [a21, a22, 0.0, 0.0],
     [-1.0, -ld, 0.0, Vx],
-    [0.0, 1.0, 0.0, 0.0]
+    [0.0,  1.0, 0.0, 0.0]
 ], dtype=float)
 
 B = np.array([
@@ -61,7 +61,7 @@ B = np.array([
     [0.0]
 ], dtype=float)
 
-# curvature input enters e_phiL_dot = r - kappa_r * Vx
+# curvature enters e_phiL_dot = r - Vx*kappa
 E = np.array([
     [0.0],
     [0.0],
@@ -81,12 +81,14 @@ e_dL[0] = 1.0
 e_phiL[0] = 0.05
 
 # ============================================
-# Higher-order SMC (super-twisting) on s = Cx
+# HOSM controller on z = x - x_ref(kappa)
 # ============================================
-# This C is a designed sliding surface for THIS truck model.
+# Keep your same sliding surface C so we only test the x_ref correction.
 C = np.array([[-3.67746041, 14.76200588, 7.88453846, 11.85602271]], dtype=float)
-
 Gamma = float((C @ B).item())
+
+if abs(Gamma) < 1e-9:
+    raise ValueError("Gamma = C @ B is zero. Choose another sliding surface.")
 
 alpha = 0.45
 beta = 0.01
@@ -98,41 +100,90 @@ delta_max = np.deg2rad(20.0)
 s_hist = np.zeros(N)
 delta1_hist = np.zeros(N)
 delta2_hist = np.zeros(N)
-delta_eq_hist = np.zeros(N)
-delta_st_hist = np.zeros(N)
-kappa_hist = np.zeros(N)
+delta_ref_hist = np.zeros(N)
 r_ref_hist = np.zeros(N)
+ephi_ref_hist = np.zeros(N)
+z_hist = np.zeros((N, 4))
+x_ref_hist = np.zeros((N, 4))
 
-R = 100.0 # Curvw Radius (m)
+R = 100.0
+
 def road_curvature(time):
     return 1.0 / R
 
+def steady_state_reference(kappa):
+    """
+    Compute x_ref(kappa) and delta_ref(kappa) from the nominal steady turn:
+        0 = A x_ref + B delta_ref + E kappa
+    with:
+        e_dL_ref = 0
+        r_ref    = Vx * kappa
+    """
+    r_ref = Vx * kappa
+
+    # Solve the steady-state lateral/yaw equations for vy_ref and delta_ref
+    M = np.array([
+        [a11, b1],
+        [a21, b2]
+    ], dtype=float)
+
+    rhs = np.array([
+        -a12 * r_ref,
+        -a22 * r_ref
+    ], dtype=float)
+
+    vy_ref, delta_ref = np.linalg.solve(M, rhs)
+
+    e_dL_ref = 0.0
+    e_phiL_ref = (vy_ref + ld * r_ref) / Vx
+
+    x_ref = np.array([vy_ref, r_ref, e_dL_ref, e_phiL_ref], dtype=float)
+    return x_ref, float(delta_ref)
+
+x_ref_prev = None
+
 for k in range(N - 1):
     kappa = road_curvature(t[k])
-
     x = np.array([vy[k], r[k], e_dL[k], e_phiL[k]], dtype=float)
 
-    # sliding variable
-    s = float((C @ x).item())
+    # current reference
+    x_ref, delta_ref = steady_state_reference(kappa)
 
-    # s_dot = Phi + Gamma * delta1
-    Phi = float((C @ (A @ x + E[:, 0] * kappa)).item())
+    # finite-difference x_ref_dot
+    # for constant curvature, this becomes zero after the first step
+    if x_ref_prev is None:
+        x_ref_dot = np.zeros(4)
+    else:
+        x_ref_dot = (x_ref - x_ref_prev) / dt
 
-    # equivalent control
-    delta_eq = -Phi / Gamma
+    # z dynamics:
+    # z_dot = A z + B u + d_ref
+    # where u = delta1 - delta_ref
+    d_ref = A @ x_ref + B[:, 0] * delta_ref + E[:, 0] * kappa - x_ref_dot
 
-    # super-twisting term
+    z = x - x_ref
+
+    # sliding variable on tracking-error state
+    s = float((C @ z).item())
+
+    # s_dot = C(A z + d_ref) + C B u
+    Phi = float((C @ (A @ z + d_ref)).item())
+
+    # equivalent control in error coordinates
+    u_eq = -Phi / Gamma
+
+    # super-twisting correction
     u1 = -alpha * np.sqrt(abs(s) + 1e-12) * np.sign(s)
     u2 += dt * (-beta * np.sign(s))
-    delta_st = (u1 + u2) / Gamma
+    u_st = (u1 + u2) / Gamma
 
-    # total steering command for axle 1
-    delta1 = np.clip(delta_eq + delta_st, -delta_max, delta_max)
+    # actual front-axle steering
+    delta1 = np.clip(delta_ref + u_eq + u_st, -delta_max, delta_max)
 
-    # axle 2 steering
+    # second front axle
     delta2 = a_s * delta1
 
-    # truck linear model
+    # plant propagation
     x_dot = A @ x + B[:, 0] * delta1 + E[:, 0] * kappa
     x_next = x + dt * x_dot
 
@@ -142,59 +193,88 @@ for k in range(N - 1):
     s_hist[k] = s
     delta1_hist[k] = delta1
     delta2_hist[k] = delta2
-    delta_eq_hist[k] = delta_eq
-    delta_st_hist[k] = delta_st
-    kappa_hist[k] = kappa
-    r_ref_hist[k] = Vx * kappa
+    delta_ref_hist[k] = delta_ref
+    r_ref_hist[k] = x_ref[1]
+    ephi_ref_hist[k] = x_ref[3]
+    x_ref_hist[k, :] = x_ref
+    z_hist[k, :] = z
 
-# final samples
+    x_ref_prev = x_ref.copy()
+
+# final sample
+kappa_last = road_curvature(t[-1])
 x_last = np.array([vy[-1], r[-1], e_dL[-1], e_phiL[-1]], dtype=float)
-s_hist[-1] = float((C @ x_last).item())
+x_ref_last, delta_ref_last = steady_state_reference(kappa_last)
+z_last = x_last - x_ref_last
+
+s_hist[-1] = float((C @ z_last).item())
 delta1_hist[-1] = delta1_hist[-2]
 delta2_hist[-1] = delta2_hist[-2]
-delta_eq_hist[-1] = delta_eq_hist[-2]
-delta_st_hist[-1] = delta_st_hist[-2]
-kappa_hist[-1] = kappa_hist[-2]
-r_ref_hist[-1] = r_ref_hist[-2]
+delta_ref_hist[-1] = delta_ref_last
+r_ref_hist[-1] = x_ref_last[1]
+ephi_ref_hist[-1] = x_ref_last[3]
+x_ref_hist[-1, :] = x_ref_last
+z_hist[-1, :] = z_last
 
-print("Final e_dL =", e_dL[-1])
-print("Final e_phiL =", e_phiL[-1])
-print("Final r =", r[-1])
-print("Expected r_ref =", Vx / R)
-print("Max |delta1| =", np.max(np.abs(delta1_hist)))
+print("Final x          =", x_last)
+print("Final x_ref      =", x_ref_last)
+print("Final z = x-xref =", z_last)
+print("Final e_dL       =", e_dL[-1])
+print("Final r          =", r[-1])
+print("Final r_ref      =", x_ref_last[1])
+print("Final e_phiL     =", e_phiL[-1])
+print("Final e_phiL_ref =", x_ref_last[3])
+print("Max |delta1|     =", np.max(np.abs(delta1_hist)))
 
 # =====================
 # Plots
 # =====================
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(11, 7))
 
 plt.subplot(2, 2, 1)
-plt.plot(t, e_dL)
+plt.plot(t, e_dL, label="e_dL")
+plt.plot(t, x_ref_hist[:, 2], "--", label="e_dL_ref")
 plt.xlabel("Time [s]")
-plt.ylabel("e_dL [m]")
+plt.ylabel("Lateral offset [m]")
+plt.legend()
 plt.grid(True)
 
 plt.subplot(2, 2, 2)
-plt.plot(t, e_phiL)
+plt.plot(t, r, label="r")
+plt.plot(t, r_ref_hist, "--", label="r_ref")
 plt.xlabel("Time [s]")
-plt.ylabel("e_phiL [rad]")
+plt.ylabel("Yaw rate [rad/s]")
+plt.legend()
 plt.grid(True)
 
 plt.subplot(2, 2, 3)
+plt.plot(t, e_phiL, label="e_phiL")
+plt.plot(t, ephi_ref_hist, "--", label="e_phiL_ref")
+plt.xlabel("Time [s]")
+plt.ylabel("Heading state [rad]")
+plt.legend()
+plt.grid(True)
+
+plt.subplot(2, 2, 4)
 plt.plot(t, delta1_hist, label="delta1")
 plt.plot(t, delta2_hist, "--", label="delta2")
+plt.plot(t, delta_ref_hist, ":", label="delta_ref")
 plt.xlabel("Time [s]")
 plt.ylabel("Steering [rad]")
 plt.legend()
 plt.grid(True)
 
-plt.subplot(2, 2, 4)
-plt.plot(t, r, label="r")
-plt.plot(t, r_ref_hist, "--", label="r_ref = Vx*kappa")
-plt.xlabel("Time [s]")
-plt.ylabel("Yaw rate [rad/s]")
-plt.legend()
-plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11, 7))
+labels = ["vy_tilde [m/s]", "r_tilde [rad/s]", "e_dL_tilde [m]", "e_phiL_tilde [rad]"]
+for i in range(4):
+    plt.subplot(2, 2, i + 1)
+    plt.plot(t, z_hist[:, i])
+    plt.xlabel("Time [s]")
+    plt.ylabel(labels[i])
+    plt.grid(True)
 
 plt.tight_layout()
 plt.show()
@@ -202,16 +282,6 @@ plt.show()
 plt.figure()
 plt.plot(t, s_hist)
 plt.xlabel("Time [s]")
-plt.ylabel("Sliding variable s")
-plt.grid(True)
-plt.show()
-
-plt.figure()
-plt.plot(t, delta_eq_hist, label="delta_eq")
-plt.plot(t, delta_st_hist, label="delta_st")
-plt.plot(t, delta1_hist, label="delta1")
-plt.xlabel("Time [s]")
-plt.ylabel("Steering [rad]")
-plt.legend()
+plt.ylabel("Sliding variable s = C(x - x_ref)")
 plt.grid(True)
 plt.show()
