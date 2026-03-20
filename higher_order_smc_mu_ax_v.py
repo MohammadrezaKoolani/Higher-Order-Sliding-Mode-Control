@@ -29,6 +29,18 @@ Ca4 = 173600.0
 Vx = 13.5
 ld = 5.0
 
+# Perturbed Plant Parameters
+m_p  = 1.10 * m
+Iz_p = 0.90 * Iz
+
+Ca1_p = 0.90 * Ca1
+Ca2_p = 0.90 * Ca2
+Ca3_p = 1.10 * Ca3
+Ca4_p = 1.10 * Ca4
+
+Vx_p = 1.10 * Vx
+
+
 # dual-front-steering relation
 a_s = (2.0 * L2 - L3 - L4) / (2.0 * L1 - L3 - L4)
 
@@ -69,6 +81,42 @@ E = np.array([
     [0.0],
     [-Vx]
 ], dtype=float)
+
+
+# Perturbed plant model
+sumCa_p   = Ca1_p + Ca2_p + Ca3_p + Ca4_p
+sumCaL_p  = Ca1_p * L1 + Ca2_p * L2 + Ca3_p * L3 + Ca4_p * L4
+sumCaL2_p = Ca1_p * L1**2 + Ca2_p * L2**2 + Ca3_p * L3**2 + Ca4_p * L4**2
+
+a11_p = -sumCa_p / (m_p * Vx_p)
+a12_p = -sumCaL_p / (m_p * Vx_p) - Vx_p
+a21_p = -sumCaL_p / (Iz_p * Vx_p)
+a22_p = -sumCaL2_p / (Iz_p * Vx_p)
+
+b1_p = (Ca1_p + a_s * Ca2_p) / m_p
+b2_p = (Ca1_p * L1 + a_s * Ca2_p * L2) / Iz_p
+
+A_p = np.array([
+    [a11_p, a12_p, 0.0, 0.0],
+    [a21_p, a22_p, 0.0, 0.0],
+    [-1.0, -ld, 0.0, Vx_p],
+    [0.0,  1.0, 0.0, 0.0]
+], dtype=float)
+
+B_p = np.array([
+    [b1_p],
+    [b2_p],
+    [0.0],
+    [0.0]
+], dtype=float)
+
+E_p = np.array([
+    [0.0],
+    [0.0],
+    [0.0],
+    [-Vx_p]
+], dtype=float)
+
 
 # =====================
 # States
@@ -217,7 +265,7 @@ for k in range(N - 1):
     w = np.array([d1, d2, d3, d4], dtype=float) # Disturbance vector
     # x_dot = A @ x + B[:, 0] * delta1 + np.array([0.0, 0.0, 0.0, -Vx * kappa]) + w
     # x_next = x + dt * x_dot
-    x_dot = A @ x_true + B[:, 0] * delta1 + np.array([0.0, 0.0, 0.0, -Vx * kappa]) + w
+    x_dot = A_p @ x_true + B_p[:, 0] * delta1 + E_p[:, 0] * kappa + w
     x_next = x_true + dt * x_dot
 
     vy[k+1], r[k+1], e_dL[k+1], e_phiL[k+1] = x_next
