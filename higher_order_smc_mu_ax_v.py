@@ -26,7 +26,7 @@ Ca2 = 175000.0
 Ca3 = 173600.0
 Ca4 = 173600.0
 
-Vx = 18
+Vx = 13.5
 ld = 5.0
 
 # dual-front-steering relation
