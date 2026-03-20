@@ -127,6 +127,7 @@ z_hist = np.zeros((N, 4))
 x_ref_hist = np.zeros((N, 4))
 delta_eq_hist = np.zeros(N)
 delta_st_hist = np.zeros(N)
+r_meas_hist = np.zeros(N)
 
 R = 50.0
 def road_curvature(time):
@@ -162,11 +163,18 @@ def steady_state_reference(kappa):
     x_ref = np.array([vy_ref, r_ref, e_dL_ref, e_phiL_ref], dtype=float)
     return x_ref, float(delta_ref)
 
+# Creating Measurement Noise
+np.random.seed(1)
+sigma_r = 0.05 / 3.0 # about 99.7% of samples within +- 0.05 rad/s
+
 x_ref_prev = None
 
 for k in range(N - 1):
     kappa = road_curvature(t[k])
-    x = np.array([vy[k], r[k], e_dL[k], e_phiL[k]], dtype=float)
+    # x = np.array([vy[k], r[k], e_dL[k], e_phiL[k]], dtype=float)
+    x_true = np.array([vy[k], r[k], e_dL[k], e_phiL[k]], dtype=float)
+    r_meas = r[k] + np.random.normal(0.0, sigma_r)
+    x_meas = np.array([vy[k], r_meas, e_dL[k], e_phiL[k]], dtype=float)
 
     # current reference
     x_ref, delta_ref = steady_state_reference(kappa)
@@ -183,7 +191,7 @@ for k in range(N - 1):
     # where u = delta1 - delta_ref
     d_ref = A @ x_ref + B[:, 0] * delta_ref + E[:, 0] * kappa - x_ref_dot
 
-    z = x - x_ref
+    z = x_meas - x_ref
 
     # sliding variable on tracking-error state
     s = float((C @ z).item())
@@ -207,8 +215,10 @@ for k in range(N - 1):
 
     # plant propagation
     w = np.array([d1, d2, d3, d4], dtype=float) # Disturbance vector
-    x_dot = A @ x + B[:, 0] * delta1 + np.array([0.0, 0.0, 0.0, -Vx * kappa]) + w
-    x_next = x + dt * x_dot
+    # x_dot = A @ x + B[:, 0] * delta1 + np.array([0.0, 0.0, 0.0, -Vx * kappa]) + w
+    # x_next = x + dt * x_dot
+    x_dot = A @ x_true + B[:, 0] * delta1 + np.array([0.0, 0.0, 0.0, -Vx * kappa]) + w
+    x_next = x_true + dt * x_dot
 
     vy[k+1], r[k+1], e_dL[k+1], e_phiL[k+1] = x_next
 
@@ -223,6 +233,7 @@ for k in range(N - 1):
     ephi_ref_hist[k] = x_ref[3]
     x_ref_hist[k, :] = x_ref
     z_hist[k, :] = z
+    r_meas_hist[k] = r_meas
 
     x_ref_prev = x_ref.copy()
 
