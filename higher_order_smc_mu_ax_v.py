@@ -311,71 +311,101 @@ print("Final s =", s_hist[-1])
 # =====================
 # Plots
 # =====================
-plt.figure(figsize=(11, 7))
 
-plt.subplot(2, 2, 1)
-plt.plot(t, e_dL, label="e_dL")
-plt.plot(t, x_ref_hist[:, 2], "--", label="e_dL_ref")
-plt.xlabel("Time [s]")
-plt.ylabel("Lateral offset [m]")
-plt.legend()
-plt.grid(True)
+# 1) Main states and steering
+fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+fig.suptitle("Truck Lateral Dynamics and Steering Response", fontsize=14)
 
-plt.subplot(2, 2, 2)
-plt.plot(t, r, label="r")
-plt.plot(t, r_ref_hist, "--", label="r_ref")
-plt.xlabel("Time [s]")
-plt.ylabel("Yaw rate [rad/s]")
-plt.legend()
-plt.grid(True)
+# Lateral offset
+axs[0, 0].plot(t, e_dL, label="e_dL")
+axs[0, 0].plot(t, x_ref_hist[:, 2], "--", label="e_dL_ref")
+axs[0, 0].set_title("Lateral Offset")
+axs[0, 0].set_xlabel("Time [s]")
+axs[0, 0].set_ylabel("Lateral offset [m]")
+axs[0, 0].grid(True)
+axs[0, 0].legend()
 
-plt.subplot(2, 2, 3)
-plt.plot(t, e_phiL, label="e_phiL")
-plt.plot(t, ephi_ref_hist, "--", label="e_phiL_ref")
-plt.xlabel("Time [s]")
-plt.ylabel("Heading state [rad]")
-plt.legend()
-plt.grid(True)
+# Yaw rate
+axs[0, 1].plot(t, r, label="r")
+axs[0, 1].plot(t, r_ref_hist, "--", label="r_ref")
+axs[0, 1].set_title("Yaw Rate")
+axs[0, 1].set_xlabel("Time [s]")
+axs[0, 1].set_ylabel("Yaw rate [rad/s]")
+axs[0, 1].grid(True)
+axs[0, 1].legend()
 
-plt.subplot(2, 2, 4)
-plt.plot(t, delta1_hist, label="delta1")
-plt.plot(t, delta2_hist, "--", label="delta2")
-plt.plot(t, delta_ref_hist, ":", label="delta_ref")
-plt.xlabel("Time [s]")
-plt.ylabel("Steering [rad]")
-plt.legend()
-plt.grid(True)
+# Heading error
+axs[1, 0].plot(t, e_phiL, label="e_phiL")
+axs[1, 0].plot(t, ephi_ref_hist, "--", label="e_phiL_ref")
+axs[1, 0].set_title("Heading Error")
+axs[1, 0].set_xlabel("Time [s]")
+axs[1, 0].set_ylabel("Heading angle [rad]")
+axs[1, 0].grid(True)
+axs[1, 0].legend()
 
-plt.tight_layout()
+# Steering inputs
+axs[1, 1].plot(t, delta1_hist, label="delta1")
+axs[1, 1].plot(t, delta2_hist, "--", label="delta2")
+axs[1, 1].plot(t, delta_ref_hist, ":", label="delta_ref")
+axs[1, 1].set_title("Steering Inputs")
+axs[1, 1].set_xlabel("Time [s]")
+axs[1, 1].set_ylabel("Steering angle [rad]")
+axs[1, 1].grid(True)
+axs[1, 1].legend()
+
+plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
-plt.figure(figsize=(11, 7))
-labels = ["vy_tilde [m/s]", "r_tilde [rad/s]", "e_dL_tilde [m]", "e_phiL_tilde [rad]"]
-for i in range(4):
-    plt.subplot(2, 2, i + 1)
-    plt.plot(t, z_hist[:, i])
-    plt.xlabel("Time [s]")
-    plt.ylabel(labels[i])
-    plt.grid(True)
 
-plt.tight_layout()
+# 2) Tracking errors z = x - x_ref
+fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+fig.suptitle("Tracking Errors", fontsize=14)
+
+error_titles = [
+    "Lateral Velocity Error",
+    "Yaw Rate Error",
+    "Lateral Offset Error",
+    "Heading Error"
+]
+
+error_labels = [
+    "vy_tilde [m/s]",
+    "r_tilde [rad/s]",
+    "e_dL_tilde [m]",
+    "e_phiL_tilde [rad]"
+]
+
+for i, ax in enumerate(axs.flat):
+    ax.plot(t, z_hist[:, i])
+    ax.set_title(error_titles[i])
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel(error_labels[i])
+    ax.grid(True)
+
+plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
-plt.figure()
+
+# 3) Sliding variable
+plt.figure(figsize=(10, 4))
 plt.plot(t, s_hist)
+plt.title("Sliding Variable")
 plt.xlabel("Time [s]")
-plt.ylabel("Sliding variable s = C(x - x_ref)")
+plt.ylabel("s = C(x - x_ref)")
 plt.grid(True)
+plt.tight_layout()
 plt.show()
 
-plt.figure()
-plt.plot(t, delta_eq_hist, label="delta_eq total")
-plt.plot(t, delta_st_hist, label="delta_st contribution")
-plt.plot(t, delta1_hist, label="delta1")
+
+# 4) Steering control components
+# Removed delta1 here because it is already shown in "Steering Inputs"
+plt.figure(figsize=(10, 4))
+plt.plot(t, delta_eq_hist, label="delta_eq")
+plt.plot(t, delta_st_hist, label="delta_st")
+plt.title("Steering Control Components")
 plt.xlabel("Time [s]")
-plt.ylabel("Steering [rad]")
+plt.ylabel("Steering angle [rad]")
 plt.legend()
 plt.grid(True)
+plt.tight_layout()
 plt.show()
-
-
