@@ -30,15 +30,15 @@ Vx = 13.5
 ld = 5.0
 
 # Perturbed Plant Parameters
-m_p  = 1.10 * m
-Iz_p = 0.90 * Iz
+m_p  = 1.0 * m
+Iz_p = 1.0 * Iz
 
-Ca1_p = 0.90 * Ca1
-Ca2_p = 0.90 * Ca2
-Ca3_p = 1.10 * Ca3
-Ca4_p = 1.10 * Ca4
+Ca1_p = 1.0 * Ca1
+Ca2_p = 1.0 * Ca2
+Ca3_p = 1.0 * Ca3
+Ca4_p = 1.0 * Ca4
 
-Vx_p = 1.10 * Vx
+Vx_p = 1.0 * Vx
 
 
 # dual-front-steering relation
@@ -132,18 +132,11 @@ e_phiL[0] = 0.05
 # ============================================
 # HOSM controller on z = x - x_ref(kappa)
 # ============================================
-# lam = 1.2
-# alpha = 0.45
-# beta = 0.01
-# alpha = 0.65
-# beta = 0.02
-# u2 = 0.0
-
 # Derived sliding surface:
 # s = -vy_tilde - ld*r_tilde + lam*e_dL_tilde + Vx*e_phiL_tilde
 # C = np.array([[-3.67746041, 14.76200588, 7.88453846, 11.85602271]], dtype=float)
-Q = np.diag([0.1, 0.3, 60.0, 30.0])
-R_lqr = np.array([[1.0]])
+Q = np.diag([0.2, 0.40, 80.0, 18.0])
+R_lqr = np.array([[1.5]])
 
 P = solve_continuous_are(A, B, Q, R_lqr)
 C = (B.T @ P).astype(float)   # 1x4 row vector
@@ -152,15 +145,15 @@ Gamma = float((C @ B).item())
 if abs(Gamma) < 1e-9:
     raise ValueError("Gamma = C @ B is zero. Choose another sliding surface.")
 
-alpha = 0.80
-beta = 0.05
+alpha = 0.75
+beta = 0.08
 u2 = 0.0
 
 # Disturbance parameters
-d1 = 0.10      # disturbance in vy_dot [m/s^2]
-d2 = 0.02      # disturbance in r_dot [rad/s^2]
-d3 = 0.02      # disturbance in e_dL_dot [m/s]
-d4 = 0.005     # disturbance in e_phiL_dot [rad/s]
+d1 = 0.0 #0.10      # disturbance in vy_dot [m/s^2]
+d2 = 0.0 #0.02      # disturbance in r_dot [rad/s^2]
+d3 = 0.0 #0.02      # disturbance in e_dL_dot [m/s]
+d4 = 0.0 #0.005     # disturbance in e_phiL_dot [rad/s]
 
 delta_max = np.deg2rad(20.0)
 
@@ -190,7 +183,7 @@ def steady_state_reference(kappa):
         e_dL_ref = 0
         r_ref    = Vx * kappa
     """
-    r_ref = Vx * kappa
+    r_ref = Vx_p * kappa
 
     # Solve the steady-state lateral/yaw equations for vy_ref and delta_ref
     M = np.array([
@@ -213,7 +206,7 @@ def steady_state_reference(kappa):
 
 # Creating Measurement Noise
 np.random.seed(1)
-sigma_r = 0.05 / 3.0 # about 99.7% of samples within +- 0.05 rad/s
+sigma_r = 0.0 #0.05 / 3.0 # about 99.7% of samples within +- 0.05 rad/s
 
 x_ref_prev = None
 
@@ -384,3 +377,5 @@ plt.ylabel("Steering [rad]")
 plt.legend()
 plt.grid(True)
 plt.show()
+
+
