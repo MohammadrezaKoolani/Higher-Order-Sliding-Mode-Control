@@ -387,14 +387,18 @@ plt.show()
 
 
 # 3) Sliding variable
-plt.figure(figsize=(10, 4))
-plt.plot(t, s_hist)
-plt.title("Sliding Variable")
-plt.xlabel("Time [s]")
-plt.ylabel("s = C(x - x_ref)")
+plt.figure(figsize=(3, 3))  # smaller figure
+plt.plot(t, s_hist, linewidth=2.5)  # thicker line
+plt.plot(t, np.zeros_like(t), "--", label="s_ref", linewidth=2)
+plt.title("Sliding Variable", fontsize=16, fontweight="bold")
+plt.xlabel("Time [s]", fontsize=12, fontweight="bold")
+plt.ylabel("s = C(x - x_ref)", fontsize=18, fontweight="bold")
+plt.xticks(fontsize=11)
+plt.yticks(fontsize=11)
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
 
 
 # 4) Steering control components
