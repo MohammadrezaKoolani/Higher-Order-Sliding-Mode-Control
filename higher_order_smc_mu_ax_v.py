@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve_continuous_are
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 
 # ====================
 # Simulation Settings
 # ====================
-T = 20.0
+T = 50.0
 dt = 0.01
 N = int(T / dt) + 1
 t = np.linspace(0.0, T, N)
@@ -126,7 +127,7 @@ r = np.zeros(N)
 e_dL = np.zeros(N)
 e_phiL = np.zeros(N)
 
-e_dL[0] = 2.0
+e_dL[0] = 1.0
 e_phiL[0] = 0.05
 
 # ============================================
@@ -312,104 +313,98 @@ print("Final s =", s_hist[-1])
 # Plots
 # =====================
 
-# 1) Main states and steering
-fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-fig.suptitle("Truck Lateral Dynamics and Steering Response", fontsize=14)
+# =====================
+# Unified plots for comparison
+# =====================
 
-# Lateral offset
-axs[0, 0].plot(t, e_dL, label="e_dL")
-axs[0, 0].plot(t, x_ref_hist[:, 2], "--", label="e_dL_ref")
-axs[0, 0].set_title("Lateral Offset")
+plt.rcParams.update({
+    "font.size": 15,
+    "font.weight": "bold",          # default text
+    "axes.titlesize": 16,
+    "axes.titleweight": "bold",     # subplot titles
+    "axes.labelsize": 15,
+    "axes.labelweight": "bold",     # x/y labels
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14
+})
+
+# References already available from the simulation
+e_ref = x_ref_hist[:, 2]
+r_ref = r_ref_hist
+aux_ref = ephi_ref_hist
+
+# 1) Main comparison figure: same structure for both models
+fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+fig.suptitle("Closed-Loop Lateral Dynamics Comparison (8 Wheels)", fontsize=22, fontweight="bold")
+
+# (1,1) Lateral error
+axs[0, 0].plot(t, e_dL, linewidth=3.0, label="Actual")
+axs[0, 0].plot(t, e_ref, "--", linewidth=2.5, label="Reference")
+axs[0, 0].set_title("Lateral Error")
 axs[0, 0].set_xlabel("Time [s]")
-axs[0, 0].set_ylabel("Lateral offset [m]")
+axs[0, 0].set_ylabel("Error [m]")
 axs[0, 0].grid(True)
 axs[0, 0].legend()
 
-# Yaw rate
-axs[0, 1].plot(t, r, label="r")
-axs[0, 1].plot(t, r_ref_hist, "--", label="r_ref")
+# (1,2) Yaw rate
+axs[0, 1].plot(t, r, linewidth=2.2, label="Actual")
+axs[0, 1].plot(t, r_ref, "--", linewidth=2.0, label="Reference")
 axs[0, 1].set_title("Yaw Rate")
 axs[0, 1].set_xlabel("Time [s]")
 axs[0, 1].set_ylabel("Yaw rate [rad/s]")
 axs[0, 1].grid(True)
 axs[0, 1].legend()
 
-# Heading error
-axs[1, 0].plot(t, e_phiL, label="e_phiL")
-axs[1, 0].plot(t, ephi_ref_hist, "--", label="e_phiL_ref")
-axs[1, 0].set_title("Heading Error")
+# (2,1) Auxiliary lateral state
+axs[1, 0].plot(t, e_phiL, linewidth=2.2, label="Actual")
+axs[1, 0].plot(t, aux_ref, "--", linewidth=2.0, label="Reference")
+axs[1, 0].set_title("Auxiliary Lateral State")
 axs[1, 0].set_xlabel("Time [s]")
-axs[1, 0].set_ylabel("Heading angle [rad]")
+axs[1, 0].set_ylabel("Heading error [rad]")
 axs[1, 0].grid(True)
 axs[1, 0].legend()
 
-# Steering inputs
-axs[1, 1].plot(t, delta1_hist, label="delta1")
-axs[1, 1].plot(t, delta2_hist, "--", label="delta2")
-axs[1, 1].plot(t, delta_ref_hist, ":", label="delta_ref")
-axs[1, 1].set_title("Steering Inputs")
+# (2,2) Steering input
+axs[1, 1].plot(t, delta1_hist, linewidth=2.2, label="Steering input")
+axs[1, 1].set_title("Steering Input")
 axs[1, 1].set_xlabel("Time [s]")
 axs[1, 1].set_ylabel("Steering angle [rad]")
 axs[1, 1].grid(True)
 axs[1, 1].legend()
 
-plt.tight_layout(rect=[0, 0, 1, 0.96])
+for ax in axs.flat:
+    ax.set_xlim(0, 50)
+    ax.xaxis.set_major_locator(MultipleLocator(5.0))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%g'))
+    ax.tick_params(axis='both', labelsize=14)
+    for label in ax.get_xticklabels() + ax.get_yticklabels():
+        label.set_fontweight('bold')
+
+plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
 
-# 2) Tracking errors z = x - x_ref
-fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-fig.suptitle("Tracking Errors", fontsize=14)
-
-error_titles = [
-    "Lateral Velocity Error",
-    "Yaw Rate Error",
-    "Lateral Offset Error",
-    "Heading Error"
-]
-
-error_labels = [
-    "vy_tilde [m/s]",
-    "r_tilde [rad/s]",
-    "e_dL_tilde [m]",
-    "e_phiL_tilde [rad]"
-]
-
-for i, ax in enumerate(axs.flat):
-    ax.plot(t, z_hist[:, i])
-    ax.set_title(error_titles[i])
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel(error_labels[i])
-    ax.grid(True)
-
-plt.tight_layout(rect=[0, 0, 1, 0.96])
-plt.show()
-
-
-# 3) Sliding variable
-plt.figure(figsize=(3, 3))  # smaller figure
-plt.plot(t, s_hist, linewidth=2.5)  # thicker line
-plt.plot(t, np.zeros_like(t), "--", label="s_ref", linewidth=2)
-plt.title("Sliding Variable", fontsize=16, fontweight="bold")
-plt.xlabel("Time [s]", fontsize=12, fontweight="bold")
-plt.ylabel("s = C(x - x_ref)", fontsize=18, fontweight="bold")
-plt.xticks(fontsize=11)
-plt.yticks(fontsize=11)
+# 2) Sliding surface
+plt.figure(figsize=(8, 4.5))
+plt.plot(t, s_hist, linewidth=3.0, label="Actual")
+plt.plot(t, np.zeros_like(t), "--", linewidth=2.5, label="Reference")
+plt.title("Sliding Surface (8 Wheels)", fontsize=22, fontweight="bold")
+plt.xlabel("Time [s]")
+plt.ylabel("s")
 plt.grid(True)
+plt.legend()
 plt.tight_layout()
 plt.show()
 
 
-
-# 4) Steering control components
-# Removed delta1 here because it is already shown in "Steering Inputs"
-plt.figure(figsize=(10, 4))
-plt.plot(t, delta_eq_hist, label="delta_eq")
-plt.plot(t, delta_st_hist, label="delta_st")
-plt.title("Steering Control Components")
+# 3) Control components
+plt.figure(figsize=(10, 4.5))
+plt.plot(t, delta_eq_hist, linewidth=2.2, label="Equivalent component")
+plt.plot(t, delta_st_hist, linewidth=2.2, label="Super-twisting component")
+plt.title("Steering Control Components", fontsize=14, fontweight="bold")
 plt.xlabel("Time [s]")
 plt.ylabel("Steering angle [rad]")
-plt.legend()
 plt.grid(True)
+plt.legend()
 plt.tight_layout()
 plt.show()

@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 
 # =====================
 # Simulation settings
 # =====================
-T = 20.0
+T = 50.0
 dt = 0.01
 N = int(T / dt) + 1
 t = np.linspace(0, T, N)
@@ -148,111 +149,97 @@ print("Final u2        =", u2_hist[-1])
 # =====================
 
 # =====================
-# Plots
+# Unified plots for comparison
 # =====================
 
-# Reference signals for regulation
+plt.rcParams.update({
+    "font.size": 15,
+    "font.weight": "bold",          # default text
+    "axes.titlesize": 16,
+    "axes.titleweight": "bold",     # subplot titles
+    "axes.labelsize": 15,
+    "axes.labelweight": "bold",     # x/y labels
+    "xtick.labelsize": 14,
+    "ytick.labelsize": 14
+})
+
+# Reference signals
 e_ref = np.zeros_like(t)
-edot_ref = np.zeros_like(t)
+r_ref = np.full_like(t, Vx / R)   # steady yaw-rate reference for constant curvature
+aux_ref = np.zeros_like(t)        # auxiliary state reference
 
-# 1) Tracking error states
+# 1) Main comparison figure: same structure for both models
 fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-fig.suptitle("Tracking Error Dynamics", fontsize=14)
+fig.suptitle("Closed-Loop Lateral Dynamics Comparison(4 Wheels)", fontsize=22, fontweight="bold")
 
-# Lateral tracking error
-axs[0, 0].plot(t, e, label="e")
-axs[0, 0].plot(t, e_ref, "--", label="e_ref")
-axs[0, 0].set_title("Lateral Tracking Error")
+# (1,1) Lateral error
+axs[0, 0].plot(t, e, linewidth=2.2, label="Actual")
+axs[0, 0].plot(t, e_ref, "--", linewidth=2.0, label="Reference")
+axs[0, 0].set_title("Lateral Error")
 axs[0, 0].set_xlabel("Time [s]")
-axs[0, 0].set_ylabel("e [m]")
+axs[0, 0].set_ylabel("Error [m]")
 axs[0, 0].grid(True)
 axs[0, 0].legend()
 
-# Derivative of tracking error
-axs[0, 1].plot(t, edot, label="edot")
-axs[0, 1].plot(t, edot_ref, "--", label="edot_ref")
-axs[0, 1].set_title("Tracking Error Derivative")
+# (1,2) Yaw rate
+axs[0, 1].plot(t, r, linewidth=2.2, label="Actual")
+axs[0, 1].plot(t, r_ref, "--", linewidth=2.0, label="Reference")
+axs[0, 1].set_title("Yaw Rate")
 axs[0, 1].set_xlabel("Time [s]")
-axs[0, 1].set_ylabel("edot [m/s]")
+axs[0, 1].set_ylabel("Yaw rate [rad/s]")
 axs[0, 1].grid(True)
 axs[0, 1].legend()
 
-# Lateral velocity
-axs[1, 0].plot(t, vy, label="vy")
-axs[1, 0].set_title("Lateral Velocity")
+# (2,1) Auxiliary lateral state
+axs[1, 0].plot(t, vy, linewidth=2.2, label="Actual")
+axs[1, 0].plot(t, aux_ref, "--", linewidth=2.0, label="Reference")
+axs[1, 0].set_title("Auxiliary Lateral State")
 axs[1, 0].set_xlabel("Time [s]")
-axs[1, 0].set_ylabel("vy [m/s]")
+axs[1, 0].set_ylabel("Lateral velocity [m/s]")
 axs[1, 0].grid(True)
 axs[1, 0].legend()
 
-# Yaw rate
-axs[1, 1].plot(t, r, label="r")
-axs[1, 1].set_title("Yaw Rate")
+# (2,2) Steering input
+axs[1, 1].plot(t, delta_hist, linewidth=2.2, label="Steering input")
+axs[1, 1].set_title("Steering Input")
 axs[1, 1].set_xlabel("Time [s]")
-axs[1, 1].set_ylabel("r [rad/s]")
+axs[1, 1].set_ylabel("Steering angle [rad]")
 axs[1, 1].grid(True)
 axs[1, 1].legend()
 
-plt.tight_layout(rect=[0, 0, 1, 0.96])
+for ax in axs.flat:
+    ax.set_xlim(0, 50)
+    ax.xaxis.set_major_locator(MultipleLocator(5.0))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%g'))
+    ax.tick_params(axis='both', labelsize=14)
+    for label in ax.get_xticklabels() + ax.get_yticklabels():
+        label.set_fontweight('bold')
+
+plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
 
-# 2) Yaw angle and sliding variable
-# fig, axs = plt.subplots(2, 1, figsize=(10, 8))
-# fig.suptitle("Yaw Motion and Sliding Variable", fontsize=14)
-
-# # Yaw angle
-# axs[0].plot(t, psi, label="psi")
-# axs[0].set_title("Yaw Angle")
-# axs[0].set_xlabel("Time [s]")
-# axs[0].set_ylabel("psi [rad]")
-# axs[0].grid(True)
-# axs[0].legend()
-
-# Sliding surface
-plt.figure(figsize=(3, 3))  # smaller figure
-plt.plot(t, s_hist, label="s", linewidth=2.5)                 # thicker line
-plt.plot(t, np.zeros_like(t), "--", label="s_ref", linewidth=2)
-plt.title("Sliding Surface", fontsize=16, fontweight="bold") # bigger title
-plt.xlabel("Time [s]", fontsize=18, fontweight="bold")
-plt.ylabel("s = edot + lambda e", fontsize=18, fontweight="bold")
-plt.legend(fontsize=11)
-plt.tight_layout()
-plt.grid(True)
-plt.show()
-
-
-# 3) Steering input
-plt.figure(figsize=(10, 4))
-plt.plot(t, delta_hist, label="delta")
-plt.title("Steering Input")
+# 2) Sliding surface
+plt.figure(figsize=(8, 4.5))
+plt.plot(t, s_hist, linewidth=3.0, label="Actual")
+plt.plot(t, np.zeros_like(t), "--", linewidth=2.5, label="Reference")
+plt.title("Sliding Surface (4 Wheels)", fontsize=22, fontweight="bold")
 plt.xlabel("Time [s]")
-plt.ylabel("Steering angle [rad]")
+plt.ylabel("s")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
 plt.show()
 
 
-# 4) Steering control components
-plt.figure(figsize=(10, 4))
-plt.plot(t, delta_eq_hist, label="delta_eq")
-plt.plot(t, delta_st_hist, label="delta_st")
-plt.title("Steering Control Components")
+
+# 3) Control components
+plt.figure(figsize=(10, 4.5))
+plt.plot(t, delta_eq_hist, linewidth=2.2, label="Equivalent component")
+plt.plot(t, delta_st_hist, linewidth=2.2, label="Super-twisting component")
+plt.title("Steering Control Components", fontsize=14, fontweight="bold")
 plt.xlabel("Time [s]")
 plt.ylabel("Steering angle [rad]")
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-
-# 5) Internal super-twisting state
-plt.figure(figsize=(10, 4))
-plt.plot(t, u2_hist, label="u2")
-plt.title("Super-Twisting Internal State")
-plt.xlabel("Time [s]")
-plt.ylabel("u2")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
