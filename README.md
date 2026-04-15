@@ -185,50 +185,6 @@ They also print numerical performance indicators in the console, such as:
 
 ---
 
-## Repository Structure
-
-```text
-.
-├── higher_order_SMC.py
-├── higher_order_smc_mu_ax_v.py
-├── Higher-order_sliding_mode_control_for_lateral_dynamics_of_autonomous_vehicles_with_experimental_validation.pdf
-└── 1-s2.0-S0957415825001060-main.pdf
-```
-
----
-
-## Requirements
-
-The code is written in Python and uses the following libraries:
-
-- `numpy`
-- `matplotlib`
-- `scipy` *(required for the 8-wheel model script)*
-
-Install dependencies with:
-
-```bash
-pip install numpy matplotlib scipy
-```
-
----
-
-## How to Run
-
-Run the bicycle-model simulation:
-
-```bash
-python higher_order_SMC.py
-```
-
-Run the 8-wheel heavy-truck simulation:
-
-```bash
-python higher_order_smc_mu_ax_v.py
-```
-
----
-
 ## Comparison Note
 
 This repository is intended to compare the responses of two different vehicle models under a higher-order sliding mode control framework.
